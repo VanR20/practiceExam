@@ -1,8 +1,8 @@
 ---
 title: "Practice Exam"
-author: "Karl Rohe"
-date: "2/27/2020"
-output: md_document
+author: "Anantha Rao"
+date: "2/29/2020"
+output: github_document
 ---
 
 # Practice Exam
@@ -10,8 +10,6 @@ output: md_document
 This practice exam asks you to do several code wrangling tasks that we have done in class so far. 
 
 Clone this repo into Rstudio and fill in the necessary code.  Then, commit and push to github.  Finally, turn in a link to canvas. 
-
-
 
 ```{r echo = F}
 library(tidyverse)
@@ -24,29 +22,54 @@ library(nycflights13)
 Make a plot with three facets, one for each airport in the weather data.  The x-axis should be the day of the year (1:365) and the y-axis should be the mean temperature recorded on that day, at that airport.
 ```{r}
 library(lubridate)
-weather %>% mutate(day_of_year = yday(time_hour))
+weather %>% mutate(day_of_year = yday(time_hour)) %>% group_by(origin,day_of_year) %>% summarize(temps = mean(temp)) %>% 
+  ggplot(mapping = aes(x = day_of_year,
+                       y = temps)) +
+  facet_wrap(~origin) + geom_point()
+
 ```
 
 
 Make a non-tidy matrix of that data where each row is an airport and each column is a day of the year.  
 
 ```{r}
-
+library(lubridate)
+weather %>% mutate(day_of_year = yday(time_hour)) %>% group_by(origin,day_of_year) %>% summarize(temps = mean(temp)) %>% pivot_wider(names_from = day_of_year,values_from = temps) %>% View
 ```
 
 
 For each (airport, day) contruct a tidy data set of the airport's "performance" as the proportion of flights that departed less than an hour late. 
 ```{r}
+flights %>% group_by(origin,year,month,day) %>% summarize(onTimePer = mean(dep_delay < 60,na.rm = T)) -> flightPerformance
+
 ```
 
 Construct a tidy data set to that give weather summaries for each (airport, day).  Use the total precipitation, minimum visibility, maximum wind_gust, and average wind_speed.  
-```{r}
+```{r,warning=FALSE}
+weather %>% group_by(origin,year,month,day) %>% summarize(totalPrecip = sum(precip),
+                                                          minVisibility = min(visib),
+                                                          maxWindGust = max(wind_gust,na.rm = T),
+                                                          meanWindSpeed = mean(wind_speed,na.rm = T)) -> weatherSummaries
+
+View(weatherSummaries)
+
 ```
 
 Construct a linear model to predict the performance of each (airport,day) using the weather summaries and a "fixed effect" for each airport.  Display the summaries.  
 ```{r}
+
+flightWeather <- flightPerformance %>% left_join(weatherSummaries, by = c('origin','year','month','day'))
+
+model <- lm(onTimePer~origin+totalPrecip+minVisibility+meanWindSpeed,data = flightWeather)
+summary(model)
+
 ```
 
 Repeat the above, but only for EWR.  Obviously, exclude the fixed effect for each airport.
 ```{r}
+
+flightWeather %>% filter(origin == 'EWR') -> flightWeather2
+
+model2 <- lm(onTimePer~totalPrecip+minVisibility+meanWindSpeed,data = flightWeather2)
+summary(model2)
 ```
